@@ -1,0 +1,9 @@
+build/
+build-host/
+*.elf
+*.map
+*.o
+
+# Built by CI, attached to releases
+fwdgen.3dsx
+fwdgen.smdh

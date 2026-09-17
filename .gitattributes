@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+*.cia   binary
+*.3dsx  binary
+*.smdh  binary
+*.bnr   binary
+*.png   binary
