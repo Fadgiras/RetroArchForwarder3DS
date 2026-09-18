@@ -100,6 +100,64 @@ Two details worth knowing, both learned the hard way:
 The system is derived from the core file name, via the `SYSTEMS` table in
 `source/fetch.c` — extend it as you add cores.
 
+### Identifying the game
+
+Matching on the file name only goes so far: a ROM called `FF7.pbp` matches
+nothing, and no fuzzy matching bridges the gap between that and
+`Final Fantasy VII (France) (Disc 1)`. So the disc is asked what it is, in this
+order:
+
+1. **its own serial**, mapped to a canonical name through the system index
+2. **the file name**, confirmed by an actual fetch rather than assumed
+3. **the system keyboard**, filtering that same index
+
+| Format | Where the serial lives | Readable |
+| --- | --- | --- |
+| pbp | `PARAM.SFO`, first kilobyte | yes |
+| bin / cue / iso | `SYSTEM.CNF`, a `BOOT=cdrom:` line in track 1 | yes |
+| chd | nowhere, the data is LZMA compressed | no, keyboard |
+
+Neither case needs an ISO9660 parser: a plain string scan finds the boot line.
+
+The name is settled once per game, before the icon and the banner, so the
+keyboard never opens twice. When it does open on a pbp it starts pre-filled
+with the title the file declares for itself.
+
+A pbp also carries its own `ICON0.PNG`, used as a last resort when the network
+is unreachable.
+
+### Adding a system
+
+Indexes live in `romfs/db/<system>.txt`, one line per record:
+
+```
+SERIAL|Game Name (Region)
+```
+
+The serial is empty for platforms that have none. That still matters: the
+keyboard searches the names, so an index without a single serial makes manual
+picking work for cartridge systems too.
+
+Only `Sony - PlayStation` ships with the app, since that is what a 3DS runs
+best. Add another with:
+
+```bash
+python tools/make_index.py "Sega - Mega-CD - Sega CD"
+python tools/make_index.py "NEC - PC Engine CD - TurboGrafx-CD"
+python tools/make_index.py "Nintendo - Game Boy Advance" --source no-intro
+```
+
+`redump` covers disc systems and carries serials, `no-intro` covers cartridge
+systems and gives names only. Both come from
+[libretro-database](https://github.com/libretro/libretro-database), the same
+source RetroArch scans with, so the names line up with the thumbnail
+repository. The system name must match a `.dat` there exactly, and the same
+string the `SYSTEMS` table in `source/fetch.c` maps your core to.
+
+Each index costs romfs space: PlayStation is 0.5 MB for 10318 serials and
+9992 titles. Without an index a system still works, it just falls back to the
+file name.
+
 ### Banner format
 
 A banner is a **CBMD**: a header pointing at an LZ11-compressed CGFX (offset at
@@ -154,6 +212,10 @@ gcc -O2 -o host/test_sha host/test_sha.c source/sha256.c
 gcc -O2 -o host/test_icon host/test_icon.c source/icongen.c -lm
 gcc -O2 -o host/test_banner host/test_banner.c source/bannergen.c source/icongen.c -lm
 gcc -O2 -o host/test_patch host/test_patch.c source/cia_patch.c source/sha256.c
+
+# reads a ROM's serial and resolves it; point INDEX_PATH at the index
+gcc -O2 -DINDEX_DIR='"romfs/db"' -o host/test_meta host/test_meta.c source/metadata.c
+./host/test_meta "Sony - PlayStation" "some game.pbp"
 ```
 
 ## Limitations

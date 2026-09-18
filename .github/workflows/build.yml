@@ -25,10 +25,11 @@ jobs:
           gcc -O2 -w     -o build-host/test_icon   host/test_icon.c   source/icongen.c -lm
           gcc -O2 -w     -o build-host/test_banner host/test_banner.c source/bannergen.c source/icongen.c -lm
           gcc -O2 -w     -o build-host/test_patch  host/test_patch.c  source/cia_patch.c source/sha256.c
+          gcc -O2 -Wall -o build-host/test_meta   host/test_meta.c   source/metadata.c
 
-      # Only the self-contained ones run here. test_icon, test_banner and
-      # test_patch need input files that are not in the repository; building
-      # them still guards against a broken build.
+      # Only the self-contained ones run here. test_icon, test_banner,
+      # test_patch and test_meta need input files that are not in the
+      # repository; building them still guards against a broken build.
       - name: Run the self-contained tests
         run: |
           set -eu

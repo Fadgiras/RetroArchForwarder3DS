@@ -7,3 +7,8 @@ build-host/
 # Built by CI, attached to releases
 fwdgen.3dsx
 fwdgen.smdh
+
+# Host test binaries
+*.exe
+host/*.bin
+host/*.cia
