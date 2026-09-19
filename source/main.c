@@ -75,6 +75,14 @@ static bool resolveArtName(const char* rom_path, const char* core_path,
 		return true;
 	}
 
+	// Nothing to filter without an index, so keep the keyboard shut and let
+	// the template artwork stand.
+	if (!metaHasIndex(system))
+	{
+		printf("  name     : not recognised, no index for %s\n", system);
+		return false;
+	}
+
 	// A pbp states its own title, a far better starting point for the search
 	// than a file called "FF7".
 	printf("  name     : not recognised, asking\n");

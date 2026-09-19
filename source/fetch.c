@@ -12,19 +12,92 @@
 #define CHUNK 0x4000
 #define MAX_REDIRECTS 4
 
+// Which system a core plays, spelled the way the thumbnail repository spells
+// it. Every name here was checked against the server. Cores that carry their
+// own game are left out: they have no repository to look in.
 static const struct { const char* core; const char* system; } SYSTEMS[] = {
 	{ "pcsx_rearmed",              "Sony - PlayStation" },
 	{ "pcsx_rearmed_interpreter",  "Sony - PlayStation" },
+
 	{ "snes9x",                    "Nintendo - Super Nintendo Entertainment System" },
+	{ "snes9x2002",                "Nintendo - Super Nintendo Entertainment System" },
+	{ "snes9x2005",                "Nintendo - Super Nintendo Entertainment System" },
+	{ "snes9x2005_plus",           "Nintendo - Super Nintendo Entertainment System" },
 	{ "snes9x2010",                "Nintendo - Super Nintendo Entertainment System" },
 	{ "nestopia",                  "Nintendo - Nintendo Entertainment System" },
 	{ "fceumm",                    "Nintendo - Nintendo Entertainment System" },
+	{ "quicknes",                  "Nintendo - Nintendo Entertainment System" },
 	{ "gambatte",                  "Nintendo - Game Boy Color" },
+	{ "gearboy",                   "Nintendo - Game Boy Color" },
+	{ "tgbdual",                   "Nintendo - Game Boy Color" },
+	{ "DoubleCherryGB",            "Nintendo - Game Boy Color" },
 	{ "mgba",                      "Nintendo - Game Boy Advance" },
 	{ "vba_next",                  "Nintendo - Game Boy Advance" },
+	{ "gpsp",                      "Nintendo - Game Boy Advance" },
+	{ "mednafen_vb",               "Nintendo - Virtual Boy" },
+	{ "pokemini",                  "Nintendo - Pokemon Mini" },
+
 	{ "genesis_plus_gx",           "Sega - Mega Drive - Genesis" },
+	{ "genesis_plus_gx_wide",      "Sega - Mega Drive - Genesis" },
 	{ "picodrive",                 "Sega - Mega Drive - Genesis" },
+	{ "clownmdemu",                "Sega - Mega Drive - Genesis" },
+	{ "gearsystem",                "Sega - Master System - Mark III" },
+	{ "smsplus",                   "Sega - Master System - Mark III" },
+
+	{ "mednafen_pce_fast",         "NEC - PC Engine - TurboGrafx 16" },
+	{ "geargrafx",                 "NEC - PC Engine - TurboGrafx 16" },
+	{ "quasi88",                   "NEC - PC-88" },
+	{ "np2kai",                    "NEC - PC-98" },
+	{ "nekop2",                    "NEC - PC-98" },
+
+	{ "mednafen_ngp",              "SNK - Neo Geo Pocket Color" },
+	{ "race",                      "SNK - Neo Geo Pocket Color" },
+	{ "mednafen_wswan",            "Bandai - WonderSwan Color" },
+
+	{ "stella2014",                "Atari - 2600" },
+	{ "a5200",                     "Atari - 5200" },
+	{ "prosystem",                 "Atari - 7800" },
+	{ "atari800",                  "Atari - 8-bit Family" },
+	{ "handy",                     "Atari - Lynx" },
+
 	{ "mame2000",                  "MAME" },
+	{ "mame2003",                  "MAME" },
+	{ "mame2003_plus",             "MAME" },
+	{ "fbalpha2012",               "FBNeo - Arcade Games" },
+	{ "fbalpha2012_cps1",          "FBNeo - Arcade Games" },
+	{ "fbalpha2012_cps2",          "FBNeo - Arcade Games" },
+	{ "fbalpha2012_cps3",          "FBNeo - Arcade Games" },
+	{ "fbneo_cps12",               "FBNeo - Arcade Games" },
+	{ "fbalpha2012_neogeo",        "SNK - Neo Geo" },
+	{ "fbneo_neogeo",              "SNK - Neo Geo" },
+	{ "neocd",                     "SNK - Neo Geo CD" },
+
+	{ "gearcoleco",                "Coleco - ColecoVision" },
+	{ "freeintv",                  "Mattel - Intellivision" },
+	{ "o2em",                      "Magnavox - Odyssey2" },
+	{ "freechaf",                  "Fairchild - Channel F" },
+	{ "vecx",                      "GCE - Vectrex" },
+	{ "opera",                     "The 3DO Company - 3DO" },
+	{ "potator",                   "Watara - Supervision" },
+	{ "gw",                        "Handheld Electronic Game" },
+
+	{ "bluemsx",                   "Microsoft - MSX" },
+	{ "fmsx",                      "Microsoft - MSX" },
+	{ "cap32",                     "Amstrad - CPC" },
+	{ "crocods",                   "Amstrad - CPC" },
+	{ "fuse",                      "Sinclair - ZX Spectrum" },
+	{ "81",                        "Sinclair - ZX 81" },
+	{ "frodo",                     "Commodore - 64" },
+	{ "vice_x64",                  "Commodore - 64" },
+	{ "vice_x64sc",                "Commodore - 64" },
+	{ "vice_xscpu64",              "Commodore - 64" },
+	{ "vice_xvic",                 "Commodore - VIC-20" },
+	{ "vice_xplus4",               "Commodore - Plus-4" },
+	{ "vice_xpet",                 "Commodore - PET" },
+	{ "theodore",                  "Thomson - MOTO" },
+	{ "x1",                        "Sharp - X1" },
+	{ "dosbox_svn",                "DOS" },
+	{ "scummvm",                   "ScummVM" },
 };
 
 const char* fetchSystemForCore(const char* core_path)

@@ -268,6 +268,18 @@ bool metaIndexPath(const char* system, char* out, size_t out_len)
 	return snprintf(out, out_len, "%s/%s.txt", INDEX_DIR, system) > 0;
 }
 
+bool metaHasIndex(const char* system)
+{
+	char path[256];
+	FILE* f;
+
+	if (!metaIndexPath(system, path, sizeof(path))) return false;
+	f = fopen(path, "r");
+	if (!f) return false;
+	fclose(f);
+	return true;
+}
+
 bool metaNameForSerial(const char* system, const char* serial,
                        char* out, size_t out_len)
 {

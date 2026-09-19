@@ -29,6 +29,10 @@ bool metaIndexPath(const char* system, char* out, size_t out_len);
 bool metaNameForSerial(const char* system, const char* serial,
                        char* out, size_t out_len);
 
+// Whether that system ships an index at all. Only PlayStation does today, so
+// the caller can tell a real dead end from one worth asking the user about.
+bool metaHasIndex(const char* system);
+
 // The title a pbp declares for itself. Poorer than the canonical name (no
 // region, no disc number) but it survives without the index.
 bool metaPbpTitle(const char* rom_path, char* out, size_t out_len);

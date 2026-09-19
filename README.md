@@ -11,10 +11,14 @@ No PC needed once it is installed.
 - **Luma3DS**, and the **Homebrew Launcher title installed** (`hblauncher_loader`,
   title id `000400000D921E00`). The forwarder jumps to it, see below.
 - The RetroArch core as a **`.3dsx`**, not as a CIA — for example
-  `sdmc:/3ds/pcsx_rearmed_libretro.3dsx`, from `RetroArch_3dsx.7z` on the
-  [libretro buildbot](https://buildbot.libretro.com/nightly/nintendo/3ds/).
-  Use the **same version** as the RetroArch you normally run: mixing versions
-  leaves the bottom screen mislabelled.
+  `sdmc:/retroarch/cores/pcsx_rearmed_libretro.3dsx`. Both that directory and
+  `sdmc:/3ds/` are scanned. The cores ship inside `RetroArch_3dsx.7z`, one
+  archive per release on the
+  [libretro buildbot](https://buildbot.libretro.com/stable/).
+  Take the archive matching the RetroArch you normally run, rather than the
+  nightly cores: mixing a recent core with older assets leaves the bottom
+  screen mislabelled. RetroArch states its own version in
+  `sdmc:/retroarch/logs/`.
 - Wi-Fi, if you want the artwork fetched automatically.
 
 ## Usage
@@ -98,7 +102,10 @@ Two details worth knowing, both learned the hard way:
   Without that substitution, *Command & Conquer* is never found.
 
 The system is derived from the core file name, via the `SYSTEMS` table in
-`source/fetch.c` — extend it as you add cores.
+`source/fetch.c`, which covers 74 cores. Every system name in it was checked
+against the server. Cores carrying their own game — *Anarch*, *Tyrquake*,
+*xrick* and the like — are deliberately absent: there is no repository to look
+them up in, and the template artwork is kept instead.
 
 ### Identifying the game
 

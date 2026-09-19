@@ -14,7 +14,8 @@ int main(int argc, char** argv)
 	if (argc < 3) { fprintf(stderr, "usage: test_meta <system> <rom> [rom...]\n"); return 1; }
 
 	if (metaIndexPath(argv[1], index, sizeof(index)))
-		printf("index: %s\n\n", index);
+		printf("index: %s (%s)\n\n", index,
+			metaHasIndex(argv[1]) ? "present" : "absent, keyboard skipped");
 
 	for (i = 2; i < argc; i++)
 	{
