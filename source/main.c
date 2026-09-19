@@ -53,52 +53,60 @@ static u64 titleIdFor(const char* rom_path)
 // The disc's own serial comes first: it is the only thing that identifies a
 // file named "FF7.pbp". Then the file name, confirmed by an actual fetch
 // rather than assumed. Then the user, with a sensible starting guess.
+// A core can cover several systems, so each step is tried against all of them,
+// and the one that answered is handed back: the banner must not go looking in
+// a different place than the icon did.
 static bool resolveArtName(const char* rom_path, const char* core_path,
-                           char* out, size_t out_len)
+                           const char** out_system, char* out, size_t out_len)
 {
-	const char* system = fetchSystemForCore(core_path);
 	char serial[SERIAL_LEN], stem[NAME_LEN], title[NAME_LEN], probe[PATH_LEN];
+	const char* system;
+	int i;
 
-	if (!system) return false;
+	*out_system = NULL;
+	if (!fetchSystemForCore(core_path, 0)) return false;
 
-	if (metaSerial(rom_path, serial, sizeof(serial))
-	    && metaNameForSerial(system, serial, out, out_len))
-	{
-		printf("  serial   : %s\n", serial);
-		return true;
-	}
+	if (metaSerial(rom_path, serial, sizeof(serial)))
+		for (i = 0; (system = fetchSystemForCore(core_path, i)) != NULL; i++)
+			if (metaNameForSerial(system, serial, out, out_len))
+			{
+				printf("  serial   : %s\n", serial);
+				*out_system = system;
+				return true;
+			}
 
 	artStem(rom_path, stem, sizeof(stem));
-	if (fetchArtwork(system, stem, "Named_Boxarts", probe, sizeof(probe)))
-	{
-		snprintf(out, out_len, "%s", stem);
-		return true;
-	}
-
-	// Nothing to filter without an index, so keep the keyboard shut and let
-	// the template artwork stand.
-	if (!metaHasIndex(system))
-	{
-		printf("  name     : not recognised, no index for %s\n", system);
-		return false;
-	}
+	for (i = 0; (system = fetchSystemForCore(core_path, i)) != NULL; i++)
+		if (fetchArtwork(system, stem, "Named_Boxarts", probe, sizeof(probe)))
+		{
+			snprintf(out, out_len, "%s", stem);
+			*out_system = system;
+			return true;
+		}
 
 	// A pbp states its own title, a far better starting point for the search
-	// than a file called "FF7".
-	printf("  name     : not recognised, asking\n");
-	return namePick(system,
-	                metaPbpTitle(rom_path, title, sizeof(title)) ? title : stem,
-	                out, out_len);
+	// than a file called "FF7". Only worth asking where an index exists:
+	// without one the keyboard would filter an empty list.
+	for (i = 0; (system = fetchSystemForCore(core_path, i)) != NULL; i++)
+		if (metaHasIndex(system))
+		{
+			printf("  name     : not recognised, asking\n");
+			*out_system = system;
+			return namePick(system,
+			                metaPbpTitle(rom_path, title, sizeof(title)) ? title : stem,
+			                out, out_len);
+		}
+
+	printf("  name     : not recognised, no index for this system\n");
+	return false;
 }
 
 // Artwork comes from the libretro repository when the network answers, and
 // from the SD card otherwise.
-static bool findArt(const char* rom_path, const char* core_path,
+static bool findArt(const char* rom_path, const char* system,
                     const char* art_name, const char* kind,
                     char* out, size_t out_len)
 {
-	const char* system = fetchSystemForCore(core_path);
-
 	if (system && art_name && *art_name
 	    && fetchArtwork(system, art_name, kind, out, out_len))
 		return true;
@@ -211,6 +219,7 @@ int main(void)
 	char core_path[PATH_LEN + 8];
 	char name[NAME_LEN];
 	char art_name[NAME_LEN];
+	const char* art_system = NULL;
 	char out_path[PATH_LEN];
 	cia_t cia;
 	u64 tid;
@@ -258,7 +267,7 @@ int main(void)
 	if ((err = cia_set_titles(&cia, name, "RetroArch forwarder")) != CIA_OK) { printf("  titles: %d\n", err); goto wait; }
 
 	// One name for both the icon and the banner: settle it before either.
-	if (!resolveArtName(rom_path, core_path, art_name, sizeof(art_name)))
+	if (!resolveArtName(rom_path, core_path, &art_system, art_name, sizeof(art_name)))
 		art_name[0] = 0;
 	else
 		printf("  artwork  : %.40s\n", art_name);
@@ -270,7 +279,7 @@ int main(void)
 		uint8_t* smdh = cia_icon_data(&cia);
 		const char* how = "none found, template icon kept";
 
-		if (smdh && findArt(rom_path, core_path, art_name, "Named_Boxarts", art, sizeof(art))
+		if (smdh && findArt(rom_path, art_system, art_name, "Named_Boxarts", art, sizeof(art))
 		    && iconApply(smdh, art))
 			how = "box art applied";
 		// A pbp carries its own icon, which keeps artwork working offline.
@@ -288,8 +297,8 @@ int main(void)
 		char art[PATH_LEN];
 		size_t reserved = 0;
 		uint8_t* bnr = cia_banner_data(&cia, &reserved);
-		bool found = findArt(rom_path, core_path, art_name, "Named_Titles", art, sizeof(art))
-			|| findArt(rom_path, core_path, art_name, "Named_Boxarts", art, sizeof(art));
+		bool found = findArt(rom_path, art_system, art_name, "Named_Titles", art, sizeof(art))
+			|| findArt(rom_path, art_system, art_name, "Named_Boxarts", art, sizeof(art));
 
 		if (bnr && found)
 		{

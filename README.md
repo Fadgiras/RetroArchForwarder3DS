@@ -107,6 +107,14 @@ against the server. Cores carrying their own game — *Anarch*, *Tyrquake*,
 *xrick* and the like — are deliberately absent: there is no repository to look
 them up in, and the template artwork is kept instead.
 
+A core often plays more than one machine, and the repository keeps each in its
+own place — *Tetris* is filed under `Nintendo - Game Boy`, *Pokémon Crystal*
+under `Nintendo - Game Boy Color`, never both. Since nothing in a ROM says
+which, a core is listed once per system it covers, likeliest first, and each is
+tried in turn. Twenty cores have several, `genesis_plus_gx` the most with five.
+The system that answered is then reused for the banner, so it never looks
+somewhere the icon did not.
+
 ### Identifying the game
 
 Matching on the file name only goes so far: a ROM called `FF7.pbp` matches

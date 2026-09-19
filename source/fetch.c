@@ -12,8 +12,10 @@
 #define CHUNK 0x4000
 #define MAX_REDIRECTS 4
 
-// Which system a core plays, spelled the way the thumbnail repository spells
-// it. Every name here was checked against the server. Cores that carry their
+// Which systems a core plays, spelled the way the thumbnail repository spells
+// them. Every name here was checked against the server. A core appears once
+// per system it covers, likeliest first, because the repositories are disjoint
+// and a ROM does not say which machine it belongs to. Cores that carry their
 // own game are left out: they have no repository to look in.
 static const struct { const char* core; const char* system; } SYSTEMS[] = {
 	{ "pcsx_rearmed",              "Sony - PlayStation" },
@@ -28,36 +30,58 @@ static const struct { const char* core; const char* system; } SYSTEMS[] = {
 	{ "fceumm",                    "Nintendo - Nintendo Entertainment System" },
 	{ "quicknes",                  "Nintendo - Nintendo Entertainment System" },
 	{ "gambatte",                  "Nintendo - Game Boy Color" },
+	{ "gambatte",                  "Nintendo - Game Boy" },
 	{ "gearboy",                   "Nintendo - Game Boy Color" },
+	{ "gearboy",                   "Nintendo - Game Boy" },
 	{ "tgbdual",                   "Nintendo - Game Boy Color" },
+	{ "tgbdual",                   "Nintendo - Game Boy" },
 	{ "DoubleCherryGB",            "Nintendo - Game Boy Color" },
+	{ "DoubleCherryGB",            "Nintendo - Game Boy" },
 	{ "mgba",                      "Nintendo - Game Boy Advance" },
+	{ "mgba",                      "Nintendo - Game Boy Color" },
+	{ "mgba",                      "Nintendo - Game Boy" },
 	{ "vba_next",                  "Nintendo - Game Boy Advance" },
 	{ "gpsp",                      "Nintendo - Game Boy Advance" },
 	{ "mednafen_vb",               "Nintendo - Virtual Boy" },
 	{ "pokemini",                  "Nintendo - Pokemon Mini" },
 
 	{ "genesis_plus_gx",           "Sega - Mega Drive - Genesis" },
+	{ "genesis_plus_gx",           "Sega - Mega-CD - Sega CD" },
+	{ "genesis_plus_gx",           "Sega - Master System - Mark III" },
+	{ "genesis_plus_gx",           "Sega - Game Gear" },
+	{ "genesis_plus_gx",           "Sega - SG-1000" },
 	{ "genesis_plus_gx_wide",      "Sega - Mega Drive - Genesis" },
+	{ "genesis_plus_gx_wide",      "Sega - Mega-CD - Sega CD" },
 	{ "picodrive",                 "Sega - Mega Drive - Genesis" },
+	{ "picodrive",                 "Sega - 32X" },
+	{ "picodrive",                 "Sega - Mega-CD - Sega CD" },
 	{ "clownmdemu",                "Sega - Mega Drive - Genesis" },
 	{ "gearsystem",                "Sega - Master System - Mark III" },
+	{ "gearsystem",                "Sega - Game Gear" },
+	{ "gearsystem",                "Sega - SG-1000" },
 	{ "smsplus",                   "Sega - Master System - Mark III" },
+	{ "smsplus",                   "Sega - Game Gear" },
 
 	{ "mednafen_pce_fast",         "NEC - PC Engine - TurboGrafx 16" },
+	{ "mednafen_pce_fast",         "NEC - PC Engine CD - TurboGrafx-CD" },
 	{ "geargrafx",                 "NEC - PC Engine - TurboGrafx 16" },
+	{ "geargrafx",                 "NEC - PC Engine CD - TurboGrafx-CD" },
 	{ "quasi88",                   "NEC - PC-88" },
 	{ "np2kai",                    "NEC - PC-98" },
 	{ "nekop2",                    "NEC - PC-98" },
 
 	{ "mednafen_ngp",              "SNK - Neo Geo Pocket Color" },
+	{ "mednafen_ngp",              "SNK - Neo Geo Pocket" },
 	{ "race",                      "SNK - Neo Geo Pocket Color" },
+	{ "race",                      "SNK - Neo Geo Pocket" },
 	{ "mednafen_wswan",            "Bandai - WonderSwan Color" },
+	{ "mednafen_wswan",            "Bandai - WonderSwan" },
 
 	{ "stella2014",                "Atari - 2600" },
 	{ "a5200",                     "Atari - 5200" },
 	{ "prosystem",                 "Atari - 7800" },
 	{ "atari800",                  "Atari - 8-bit Family" },
+	{ "atari800",                  "Atari - 5200" },
 	{ "handy",                     "Atari - Lynx" },
 
 	{ "mame2000",                  "MAME" },
@@ -69,7 +93,9 @@ static const struct { const char* core; const char* system; } SYSTEMS[] = {
 	{ "fbalpha2012_cps3",          "FBNeo - Arcade Games" },
 	{ "fbneo_cps12",               "FBNeo - Arcade Games" },
 	{ "fbalpha2012_neogeo",        "SNK - Neo Geo" },
+	{ "fbalpha2012_neogeo",        "FBNeo - Arcade Games" },
 	{ "fbneo_neogeo",              "SNK - Neo Geo" },
+	{ "fbneo_neogeo",              "FBNeo - Arcade Games" },
 	{ "neocd",                     "SNK - Neo Geo CD" },
 
 	{ "gearcoleco",                "Coleco - ColecoVision" },
@@ -82,7 +108,9 @@ static const struct { const char* core; const char* system; } SYSTEMS[] = {
 	{ "gw",                        "Handheld Electronic Game" },
 
 	{ "bluemsx",                   "Microsoft - MSX" },
+	{ "bluemsx",                   "Microsoft - MSX2" },
 	{ "fmsx",                      "Microsoft - MSX" },
+	{ "fmsx",                      "Microsoft - MSX2" },
 	{ "cap32",                     "Amstrad - CPC" },
 	{ "crocods",                   "Amstrad - CPC" },
 	{ "fuse",                      "Sinclair - ZX Spectrum" },
@@ -100,7 +128,7 @@ static const struct { const char* core; const char* system; } SYSTEMS[] = {
 	{ "scummvm",                   "ScummVM" },
 };
 
-const char* fetchSystemForCore(const char* core_path)
+const char* fetchSystemForCore(const char* core_path, int index)
 {
 	char stem[128];
 	const char* slash = strrchr(core_path, '/');
@@ -114,8 +142,9 @@ const char* fetchSystemForCore(const char* core_path)
 	memcpy(stem, slash, n);
 	stem[n] = 0;
 
+	// A core listed several times covers several systems, in table order.
 	for (i = 0; i < sizeof(SYSTEMS) / sizeof(SYSTEMS[0]); i++)
-		if (strcmp(stem, SYSTEMS[i].core) == 0)
+		if (strcmp(stem, SYSTEMS[i].core) == 0 && index-- == 0)
 			return SYSTEMS[i].system;
 	return NULL;
 }

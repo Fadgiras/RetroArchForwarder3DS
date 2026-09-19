@@ -11,8 +11,15 @@
 // Images are stored where RetroArch expects them, so it benefits too:
 // sdmc:/retroarch/thumbnails/<system>/<kind>/<game>.png
 
-// libretro system name derived from the core file name, NULL if unknown.
-const char* fetchSystemForCore(const char* core_path);
+// libretro system names a core covers, derived from its file name, most
+// likely first. NULL once past the last one, and for index 0 when the core is
+// unknown.
+//
+// A core often plays more than one machine, and the repository keeps each in
+// its own place: Tetris is filed under "Nintendo - Game Boy", Pokemon Crystal
+// under "Nintendo - Game Boy Color", never both. Nothing in a ROM says which,
+// so the caller tries them in turn.
+const char* fetchSystemForCore(const char* core_path, int index);
 
 // Downloads the artwork when missing. Returns true if the file is there on
 // return, whether it came from the network or was already present.
