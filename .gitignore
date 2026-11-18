@@ -13,3 +13,4 @@ fwdgen.smdh
 host/*.bin
 host/*.cia
 pc/fwdgen-pc.exe
+pc/*.pdb
