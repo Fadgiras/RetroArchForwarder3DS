@@ -22,6 +22,8 @@ USO
 2. "Elegir juego de la SD...": .chd, .m3u, .cue, .pbp, etc.
 3. Busca en SteamGridDB y haz clic en el logo, fondo o icono que quieras.
    Sin API key se usa la pantalla de titulo de libretro como fondo.
+   Marca "Banner transparente" si quieres solo el logo, sin fondo: se ve
+   el fondo del menu HOME (el icono siempre lleva fondo).
 4. "Crear CIA". Por defecto se guarda en <SD>\cias\.
 5. En la 3DS: FBI > SD > cias > instala el CIA.
 

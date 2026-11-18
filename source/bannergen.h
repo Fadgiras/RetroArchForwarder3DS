@@ -19,6 +19,11 @@
 size_t bannerReplaceImage(const uint8_t* bnr, size_t bnr_len,
                           const char* image_path, uint8_t* out, size_t out_cap);
 
+// Same, keeping the image's alpha: transparent areas let the HOME menu
+// background show through. Opaque images give the same result as above.
+size_t bannerReplaceImageAlpha(const uint8_t* bnr, size_t bnr_len,
+                               const char* image_path, uint8_t* out, size_t out_cap);
+
 // Room left for a logo inside the banner, so it never touches the edges.
 #define BANNER_LOGO_W 232
 #define BANNER_LOGO_H 100

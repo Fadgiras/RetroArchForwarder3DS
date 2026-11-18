@@ -158,6 +158,76 @@ static bool encodeTexture(const char* image_path, uint8_t* dst)
 	return true;
 }
 
+// Same as encodeRgb, alpha kept: the HOME menu shows through where the
+// picture is transparent. The banner model blends its texture.
+static void encodeRgba(const uint8_t* rgba, uint8_t* dst)
+{
+	int ty, tx, i;
+
+	for (ty = 0; ty < BANNER_TEX_H; ty += 8)
+		for (tx = 0; tx < BANNER_TEX_W; tx += 8)
+			for (i = 0; i < 64; i++)
+			{
+				const uint8_t* px;
+				int x, y;
+				uint16_t v;
+				tileMorton(i, &x, &y);
+				px = rgba + ((size_t)(ty + y) * BANNER_TEX_W + tx + x) * 4;
+				v = (uint16_t)(((px[0] >> 4) << 12) | ((px[1] >> 4) << 8)
+					| ((px[2] >> 4) << 4) | (px[3] >> 4));
+				dst[0] = (uint8_t)v; dst[1] = (uint8_t)(v >> 8);
+				dst += 2;
+			}
+}
+
+// Stretches to 256x128 averaging in premultiplied alpha, so transparent
+// pixels lend no colour to their neighbours.
+static void stretchRgba(const unsigned char* img, int w, int h, uint8_t* out)
+{
+	int x, y;
+
+	for (y = 0; y < BANNER_TEX_H; y++)
+		for (x = 0; x < BANNER_TEX_W; x++)
+		{
+			int x0 = x * w / BANNER_TEX_W, x1 = (x + 1) * w / BANNER_TEX_W;
+			int y0 = y * h / BANNER_TEX_H, y1 = (y + 1) * h / BANNER_TEX_H;
+			unsigned long r = 0, g = 0, b = 0, a = 0, n = 0;
+			uint8_t* d = out + ((size_t)y * BANNER_TEX_W + x) * 4;
+			int sx, sy;
+			if (x1 <= x0) x1 = x0 + 1;
+			if (y1 <= y0) y1 = y0 + 1;
+			for (sy = y0; sy < y1; sy++)
+				for (sx = x0; sx < x1; sx++)
+				{
+					const unsigned char* p = img + ((size_t)sy * w + sx) * 4;
+					r += (unsigned long)p[0] * p[3];
+					g += (unsigned long)p[1] * p[3];
+					b += (unsigned long)p[2] * p[3];
+					a += p[3]; n++;
+				}
+			d[0] = a ? (uint8_t)(r / a) : 0;
+			d[1] = a ? (uint8_t)(g / a) : 0;
+			d[2] = a ? (uint8_t)(b / a) : 0;
+			d[3] = (uint8_t)(a / n);
+		}
+}
+
+static bool fillFromImageAlpha(void* ctx, uint8_t* tex)
+{
+	int w, h, comp;
+	uint8_t* rgba;
+	unsigned char* img = stbi_load((const char*)ctx, &w, &h, &comp, 4);
+	if (!img) return false;
+
+	rgba = malloc(BANNER_TEX_W * BANNER_TEX_H * 4);
+	if (!rgba) { stbi_image_free(img); return false; }
+	stretchRgba(img, w, h, rgba);
+	stbi_image_free(img);
+	encodeRgba(rgba, tex);
+	free(rgba);
+	return true;
+}
+
 // ---------------------------------------------------------------- logo banner
 
 // Scales the background so it covers the whole banner, cropping the excess
@@ -385,6 +455,12 @@ size_t bannerReplaceImage(const uint8_t* bnr, size_t bnr_len,
                           const char* image_path, uint8_t* out, size_t out_cap)
 {
 	return rebuildBanner(bnr, bnr_len, fillFromImage, (void*)image_path, out, out_cap);
+}
+
+size_t bannerReplaceImageAlpha(const uint8_t* bnr, size_t bnr_len,
+                               const char* image_path, uint8_t* out, size_t out_cap)
+{
+	return rebuildBanner(bnr, bnr_len, fillFromImageAlpha, (void*)image_path, out, out_cap);
 }
 
 static size_t rebuildBanner(const uint8_t* bnr, size_t bnr_len,

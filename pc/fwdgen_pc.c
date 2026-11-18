@@ -6,7 +6,8 @@
 //   fwdgen-pc tid   --sd E:\ --rom "sdmc:/roms/psx/Game.chd"
 //   fwdgen-pc build --sd E:\ --template template.cia --rom ... --core ...
 //                   --name "Game" [--publisher ...] --tid 000400000FF1C100
-//                   --icon icon.png --banner banner.png --out Game.cia
+//                   --icon icon.png --banner banner.png [--transparent]
+//                   --out Game.cia
 //
 // The SD card is read for two things: the titles installed on it (the
 // folder names under "Nintendo 3DS\...\title\00040000") and the registry the
@@ -271,6 +272,14 @@ static const char* arg(int argc, char** argv, const char* name)
 	return NULL;
 }
 
+static int flag(int argc, char** argv, const char* name)
+{
+	int i;
+	for (i = 2; i < argc; i++)
+		if (strcmp(argv[i], name) == 0) return 1;
+	return 0;
+}
+
 static int cmdTid(int argc, char** argv)
 {
 	const char* sd = arg(argc, argv, "--sd");
@@ -372,7 +381,9 @@ static int cmdBuild(int argc, char** argv)
 		size_t reserved = 0;
 		uint8_t* bnr = cia_banner_data(&cia, &reserved);
 		uint8_t* rebuilt = bnr ? malloc(reserved) : NULL;
-		size_t n = rebuilt ? bannerReplaceImage(bnr, reserved, banner, rebuilt, reserved) : 0;
+		size_t n = !rebuilt ? 0
+			: flag(argc, argv, "--transparent") ? bannerReplaceImageAlpha(bnr, reserved, banner, rebuilt, reserved)
+			: bannerReplaceImage(bnr, reserved, banner, rebuilt, reserved);
 		if (!n || cia_set_banner(&cia, rebuilt, n) != CIA_OK) { free(rebuilt); printf("ERROR=banner image unreadable\n"); return 3; }
 		free(rebuilt);
 	}

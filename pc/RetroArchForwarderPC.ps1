@@ -252,7 +252,22 @@ public static class FwdArt
         return b;
     }
 
-    // The console stores no alpha: save flattened, the way it will look.
+    // Only the logo, on a fully transparent banner: the HOME menu shows
+    // through around it.
+    public static Bitmap LogoOnly(Image logo, int w, int h, int boxW, int boxH)
+    {
+        Bitmap b = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+        using (Graphics g = Graphics.FromImage(b)) g.Clear(Color.Transparent);
+        DrawLogo(b, logo, boxW, boxH, false);
+        return b;
+    }
+
+    public static void SaveAlpha(Bitmap b, string path)
+    {
+        b.Save(path, ImageFormat.Png);
+    }
+
+    // Icons store no alpha: save flattened, the way it will look.
     public static void SaveOpaque(Bitmap b, string path)
     {
         using (Bitmap o = new Bitmap(b.Width, b.Height, PixelFormat.Format24bppRgb))
@@ -266,7 +281,7 @@ public static class FwdArt
 }
 
 # ---------------------------------------------------------------- settings
-$script:Cfg = @{ ApiKey = ''; AutoPick = $true; Sd = ''; Publisher = 'RetroArch forwarder' }
+$script:Cfg = @{ ApiKey = ''; AutoPick = $true; Sd = ''; Publisher = 'RetroArch forwarder'; Transparent = $false }
 if (Test-Path -LiteralPath $script:Settings) {
     try {
         $j = Get-Content -LiteralPath $script:Settings -Raw | ConvertFrom-Json
@@ -274,6 +289,7 @@ if (Test-Path -LiteralPath $script:Settings) {
         if ($null -ne $j.AutoPick) { $script:Cfg.AutoPick  = [bool]$j.AutoPick }
         if ($j.Sd)                 { $script:Cfg.Sd        = [string]$j.Sd }
         if ($j.Publisher)          { $script:Cfg.Publisher = [string]$j.Publisher }
+        if ($null -ne $j.Transparent) { $script:Cfg.Transparent = [bool]$j.Transparent }
     } catch {}
 }
 # First run: reuse the key already saved by PS1 Forwarder Creator Plus, if it
@@ -445,7 +461,13 @@ $btnLogoClear = New-Button 'Quitar logo' 136 150 90
 $btnBgLocal   = New-Button 'Fondo local...' 12 182 120
 $btnBgClear   = New-Button 'Quitar fondo' 136 182 90
 $lblArt = New-Label '' 232 147 165
-$lblArt.Height = 60; $lblArt.Font = New-Object System.Drawing.Font('Segoe UI', 7); $lblArt.TextAlign = 'TopLeft'; $lblArt.ForeColor = [System.Drawing.Color]::DimGray
+$lblArt.Height = 44; $lblArt.Font = New-Object System.Drawing.Font('Segoe UI', 7); $lblArt.TextAlign = 'TopLeft'; $lblArt.ForeColor = [System.Drawing.Color]::DimGray
+
+$chkTrans = Add-Ctl (New-Object System.Windows.Forms.CheckBox) 232 192 170 23
+$chkTrans.Text = 'Banner transparente'
+$chkTrans.Checked = $script:Cfg.Transparent
+$tipTrans = New-Object System.Windows.Forms.ToolTip
+$tipTrans.SetToolTip($chkTrans, 'Solo el logo en el banner, sin fondo: se ve el fondo del menu HOME. El icono siempre lleva fondo (la 3DS no admite iconos transparentes).')
 
 # --- left column: SD, game, core
 [void](New-Label 'SD:' 12 222 40)
@@ -597,7 +619,10 @@ function New-Art([string]$outBanner, [string]$outIcon) {
     Remove-Item -LiteralPath $outBanner, $outIcon -ErrorAction SilentlyContinue
     $bg = Load-Image $script:Bg; $logo = Load-Image $script:Logo; $icon = Load-Image $script:IconImg
     try {
-        if ($bg -or $logo) {
+        if ($logo -and $chkTrans.Checked) {
+            $b = [FwdArt]::LogoOnly($logo, 256, 128, 248, 120)
+            [FwdArt]::SaveAlpha($b, $outBanner); $b.Dispose()
+        } elseif ($bg -or $logo) {
             $b = [FwdArt]::Compose($bg, $logo, 256, 128, 232, 100, 3)
             [FwdArt]::SaveOpaque($b, $outBanner); $b.Dispose()
         }
@@ -613,7 +638,11 @@ function New-Art([string]$outBanner, [string]$outIcon) {
     }
 }
 
+function Use-Transparent { return [bool]($chkTrans.Checked -and $script:Logo) }
+
 function Update-Preview {
+    # light gray behind the preview, like the default HOME menu theme
+    $picBanner.BackColor = $(if (Use-Transparent) { [System.Drawing.Color]::FromArgb(225, 225, 225) } else { [System.Drawing.SystemColors]::Control })
     $b = Join-Path $env:TEMP 'rafpc_banner.png'
     $i = Join-Path $env:TEMP 'rafpc_icon.png'
     New-Art $b $i
@@ -724,6 +753,7 @@ $btnKey.Add_Click({ $script:Cfg.ApiKey = $txtKey.Text.Trim(); Save-Settings; Set
 $btnSearch.Add_Click({ Search-Games $txtSearch.Text.Trim() })
 $txtSearch.Add_KeyDown({ param($s, $e) if ($e.KeyCode -eq 'Enter') { $e.SuppressKeyPress = $true; Search-Games $txtSearch.Text.Trim() } })
 $chkAuto.Add_CheckedChanged({ $script:Cfg.AutoPick = $chkAuto.Checked; Save-Settings })
+$chkTrans.Add_CheckedChanged({ $script:Cfg.Transparent = $chkTrans.Checked; Save-Settings; Update-Preview })
 $txtPub.Add_Leave({ $script:Cfg.Publisher = $txtPub.Text; Save-Settings })
 $btnSdRefresh.Add_Click({ Refresh-Sd })
 $cmbSd.Add_SelectedIndexChanged({
@@ -834,6 +864,7 @@ $btnBuild.Add_Click({
             (Q $sd), (Q $script:Template), (Q $script:SdRom), (Q ([string]$cmbCore.SelectedItem)), (Q $name), (Q (($txtPub.Text -replace '"', '').Trim())), $script:Tid, (Q $d.FileName)
         if (Test-Path -LiteralPath $i) { $cliArgs += " --icon $(Q $i)" }
         if (Test-Path -LiteralPath $b) { $cliArgs += " --banner $(Q $b)" }
+        if ((Test-Path -LiteralPath $b) -and (Use-Transparent)) { $cliArgs += ' --transparent' }
         $r = Invoke-Cli $cliArgs
         if ($r.ExitCode -ne 0 -or -not $r.OK) {
             $why = $(if ($r.ERROR) { $r.ERROR } elseif ($r.STDERR) { $r.STDERR } else { "codigo $($r.ExitCode)" })
