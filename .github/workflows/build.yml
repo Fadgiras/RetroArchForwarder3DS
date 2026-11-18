@@ -26,6 +26,7 @@ jobs:
           gcc -O2 -w     -o build-host/test_banner host/test_banner.c source/bannergen.c source/icongen.c -lm
           gcc -O2 -w     -o build-host/test_patch  host/test_patch.c  source/cia_patch.c source/sha256.c
           gcc -O2 -Wall -o build-host/test_meta   host/test_meta.c   source/metadata.c
+          gcc -O2 -Wall -o build-host/test_idalloc host/test_idalloc.c source/idalloc.c source/sha256.c
 
       # Only the self-contained ones run here. test_icon, test_banner,
       # test_patch and test_meta need input files that are not in the
@@ -36,6 +37,7 @@ jobs:
           ./build-host/test_filter
           ./build-host/test_sha
           ./build-host/test_scrub
+          ./build-host/test_idalloc
 
   build:
     runs-on: ubuntu-latest

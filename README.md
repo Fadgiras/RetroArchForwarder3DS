@@ -195,8 +195,22 @@ to uninstall first.
 
 ## Safety
 
-- Only title ids in the `0xFF000-0xFFFFF` range are ever deleted before
-  installing. Nothing outside that range is touched.
+The `0xFF000-0xFFFFF` range is not reserved for this app: NDS forwarders and
+homebrew built with a default RSF install titles there too. So the hashed id is
+only a starting point:
+
+- Before choosing, the app lists every title installed on the SD card. If that
+  list cannot be read, it stops rather than guess.
+- An id that holds a title this app did not build is **never** reused or
+  deleted. The game moves on to the next free id, and the screen says so.
+  A title counts as ours only when it carries the template's product code.
+- `sdmc:/forwarders/registry.txt` records the id each ROM received, one
+  `TITLEID|path` line per forwarder. Rebuilding a game updates its own
+  forwarder, and an id once given to a game is never handed to another, even
+  after that forwarder is uninstalled.
+- Forwarders built before the registry existed are recognised by their product
+  code and adopted on their next rebuild.
+- Nothing outside the range is ever touched.
 - The CIA is written to `sdmc:/forwarders/` **before** being installed, so a
   failed install still leaves a file you can inspect.
 
@@ -223,6 +237,9 @@ gcc -O2 -o host/test_filter host/test_filter.c source/romfilter.c
 
 gcc -O2 -o host/test_sha host/test_sha.c source/sha256.c
 ./host/test_sha
+
+gcc -O2 -o host/test_idalloc host/test_idalloc.c source/idalloc.c source/sha256.c
+./host/test_idalloc
 
 gcc -O2 -o host/test_icon host/test_icon.c source/icongen.c -lm
 gcc -O2 -o host/test_banner host/test_banner.c source/bannergen.c source/icongen.c -lm

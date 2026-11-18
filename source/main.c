@@ -23,28 +23,138 @@
 #include "sha256.h"
 #include "metadata.h"
 #include "namepick.h"
+#include "idalloc.h"
 
 #define OUT_DIR "sdmc:/forwarders"
 #define TEMPLATE "romfs:/template.cia"
 #define PBP_ICON_TMP "sdmc:/forwarders/.pbp_icon.png"
-
-// Title id range reserved for forwarders. Nothing outside it is ever removed.
-#define UID_BASE 0xFF000
-#define UID_MASK 0x00FFF
+#define REGISTRY "sdmc:/forwarders/registry.txt"
+#define REGISTRY_MAX (256 * 1024)
 
 static u8* s_cia;
 static size_t s_ciaLen;
 
-// Deriving the id from the ROM path means two games never collide, and
-// rebuilding the same game lands on the same id: a clean update, not a
-// duplicate entry on the HOME menu.
-static u64 titleIdFor(const char* rom_path)
+// What is installed on the SD card, read once before an id is chosen.
+static u64* s_installed;
+static u32 s_installedCount;
+static bool s_installedKnown;
+
+static char* s_registry;
+static char s_productCode[17];
+
+static bool isInstalled(u64 tid)
 {
-	u8 h[32];
-	u32 uid;
-	sha256(rom_path, strlen(rom_path), h);
-	uid = UID_BASE | ((((u32)h[0] << 8) | h[1]) & UID_MASK);
-	return 0x0004000000000000ULL | ((u64)uid << 8);
+	u32 i;
+	for (i = 0; i < s_installedCount; i++)
+		if (s_installed[i] == tid) return true;
+	return false;
+}
+
+static bool loadInstalled(void)
+{
+	u32 count = 0, read = 0;
+
+	if (R_FAILED(AM_GetTitleCount(MEDIATYPE_SD, &count))) return false;
+	s_installed = malloc((count ? count : 1) * sizeof(u64));
+	if (!s_installed) return false;
+	if (R_FAILED(AM_GetTitleList(&read, MEDIATYPE_SD, count, s_installed))) return false;
+	s_installedCount = read;
+	return true;
+}
+
+static void loadRegistry(void)
+{
+	FILE* f = fopen(REGISTRY, "rb");
+	long len;
+
+	s_registry = NULL;
+	if (f)
+	{
+		fseek(f, 0, SEEK_END);
+		len = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		if (len > 0 && len < REGISTRY_MAX && (s_registry = malloc((size_t)len + 1)))
+		{
+			size_t got = fread(s_registry, 1, (size_t)len, f);
+			s_registry[got] = 0;
+		}
+		fclose(f);
+	}
+	if (!s_registry && (s_registry = malloc(1))) s_registry[0] = 0;
+}
+
+static bool registryAdd(u64 tid, const char* rom_path)
+{
+	char line[PATH_LEN + 32];
+	size_t n;
+	FILE* f;
+	u64 known;
+
+	if (idRegistryFind(s_registry, rom_path, &known) && known == tid) return true;
+	n = idRegistryLine(line, sizeof(line), tid, rom_path);
+	if (!n) return false;
+	f = fopen(REGISTRY, "ab");
+	if (!f) return false;
+	fwrite(line, 1, n, f);
+	fclose(f);
+	return true;
+}
+
+// Whether an installed title was built by this app: it carries the template's
+// product code. Anything else in the range, NDS forwarders included, has its
+// own and is left alone.
+static bool isOurForwarder(u64 tid)
+{
+	char code[16 + 1];
+
+	memset(code, 0, sizeof(code));
+	if (!s_productCode[0]) return false;
+	if (R_FAILED(AM_GetTitleProductCode(MEDIATYPE_SD, tid, code))) return false;
+	return strncmp(code, s_productCode, 16) == 0;
+}
+
+static bool idTaken(u64 tid, void* ctx)
+{
+	(void)ctx;
+	return isInstalled(tid) || idRegistryHasTitle(s_registry, tid);
+}
+
+// The id a ROM gets, and whether whatever sits there now is ours to replace.
+//
+// 1. The registry lists the ROM, and that id is free or still holds our
+//    forwarder: an update of our own title. Should another title have taken
+//    the id since, the game simply moves on, as in 3.
+// 2. The hashed id holds a forwarder from before the registry: adopted.
+// 3. Otherwise the first id from the hashed one on that nobody uses, neither
+//    an installed title nor another game in the registry.
+//
+// Nothing that was not built by this app is ever replaced.
+static bool chooseTitleId(const char* rom_path, u64* tid, bool* owned, bool* moved)
+{
+	u64 preferred = idPreferredTitle(rom_path);
+
+	*owned = false;
+	*moved = false;
+
+	if (idRegistryFind(s_registry, rom_path, tid)
+	    && (!isInstalled(*tid) || isOurForwarder(*tid)))
+	{
+		*owned = true;
+		return true;
+	}
+
+	if (isInstalled(preferred) && !idRegistryHasTitle(s_registry, preferred)
+	    && isOurForwarder(preferred))
+	{
+		*tid = preferred;
+		*owned = true;
+		return true;
+	}
+
+	*tid = idPickFree(preferred, idTaken, NULL);
+	if (!*tid) return false;
+	*moved = (*tid != preferred);
+	return true;
 }
 
 // Settles on the name the artwork is filed under, once per game, because the
@@ -162,22 +272,24 @@ static bool writeToSd(const char* out_path)
 	return true;
 }
 
-static Result installCia(u64 tid)
+// Returned when the id holds a title this app did not build.
+#define INSTALL_REFUSED ((Result)0xC8A04BEF)
+
+static Result installCia(u64 tid, bool owned)
 {
 	Handle handle;
 	Result rc;
 	u32 written;
 	size_t offset = 0;
 
-	// Rebuilding the same game should be a clean update rather than a refusal.
-	// The safeguard: only titles inside the forwarder range are ever removed.
+	// Rebuilding the same game should be a clean update rather than a refusal,
+	// but only our own forwarder is ever removed. Anything else at this id
+	// means the choice above went wrong: stop rather than delete it.
+	if (isInstalled(tid))
 	{
-		u32 uid = (u32)((tid >> 8) & 0xFFFFF);
-		if (uid >= UID_BASE && uid <= (UID_BASE | UID_MASK))
-		{
-			AM_DeleteTitle(MEDIATYPE_SD, tid);
-			AM_DeleteTicket(tid);
-		}
+		if (!owned || !idInRange(tid) || !isOurForwarder(tid)) return INSTALL_REFUSED;
+		AM_DeleteTitle(MEDIATYPE_SD, tid);
+		AM_DeleteTicket(tid);
 	}
 
 	rc = AM_StartCiaInstall(MEDIATYPE_SD, &handle);
@@ -223,6 +335,7 @@ int main(void)
 	char out_path[PATH_LEN];
 	cia_t cia;
 	u64 tid;
+	bool owned, moved;
 	Result rc;
 	int err;
 
@@ -241,7 +354,6 @@ int main(void)
 
 	snprintf(rom_path, sizeof(rom_path), "sdmc:%s", rel_path);
 	displayName(rom_path, name, sizeof(name));
-	tid = titleIdFor(rom_path);
 
 	// The bottom screen still shows the browser help: clear it too.
 	uiSelectBottom();
@@ -251,7 +363,6 @@ int main(void)
 	printf(UI_TITLE "%s" UI_OFF "\n\n", name);
 	printf("  rom      : %.40s\n", rom_path);
 	printf("  core     : %.40s\n", core_path);
-	printf("  title id : %016llX\n\n", tid);
 
 	mkdir(OUT_DIR, 0777);
 
@@ -262,6 +373,32 @@ int main(void)
 	}
 
 	if ((err = cia_open(&cia, s_cia, s_ciaLen)) != CIA_OK) { printf("  cia_open: %d\n", err); goto wait; }
+
+	// The template's product code is what tells our older forwarders apart.
+	memcpy(s_productCode, s_cia + cia.ncch + 0x150, 16);
+	s_productCode[16] = 0;
+
+	// Without the list of installed titles a free id cannot be told from a
+	// taken one: better to stop than to guess.
+	s_installedKnown = loadInstalled();
+	if (!s_installedKnown)
+	{
+		printf("  " UI_ERR "Could not list installed titles." UI_OFF "\n");
+		goto wait;
+	}
+	loadRegistry();
+
+	if (!chooseTitleId(rom_path, &tid, &owned, &moved))
+	{
+		printf("  " UI_ERR "No free title id left." UI_OFF "\n");
+		goto wait;
+	}
+	printf("  title id : %016llX\n", tid);
+	if (moved)
+		printf("  " UI_WARN "id taken by another title, moved to a free one" UI_OFF "\n");
+	else if (owned && isInstalled(tid))
+		printf("  " UI_DIM "updating this game's forwarder" UI_OFF "\n");
+	printf("\n");
 	if ((err = cia_set_rom_path(&cia, rom_path)) != CIA_OK) { printf("  rom path: %d (too long?)\n", err); goto wait; }
 	if ((err = cia_set_core_path(&cia, core_path)) != CIA_OK) { printf("  core path: %d\n", err); goto wait; }
 	if ((err = cia_set_titles(&cia, name, "RetroArch forwarder")) != CIA_OK) { printf("  titles: %d\n", err); goto wait; }
@@ -334,9 +471,15 @@ int main(void)
 	else
 		printf("  could not save to SD (installing anyway)\n");
 
-	rc = installCia(tid);
+	rc = installCia(tid, owned);
 	if (R_SUCCEEDED(rc))
+	{
 		printf("\n  " UI_OK "Installed." UI_OFF " The game is on the HOME menu.\n");
+		if (!registryAdd(tid, rom_path))
+			printf("  " UI_WARN "Could not update %s" UI_OFF "\n", REGISTRY);
+	}
+	else if (rc == INSTALL_REFUSED)
+		printf("\n  " UI_ERR "Refused: %016llX belongs to another title." UI_OFF "\n", tid);
 	else
 		printf("\n  " UI_ERR "Install failed: 0x%08lX" UI_OFF "\n", rc);
 
@@ -344,6 +487,8 @@ wait:
 	waitForExit();
 done:
 	free(s_cia);
+	free(s_installed);
+	free(s_registry);
 	httpcExit();
 	amExit();
 	romfsExit();
