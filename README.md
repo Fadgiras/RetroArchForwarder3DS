@@ -1,4 +1,8 @@
-# RetroArch Forwarder Generator
+# RetroArch Forwarder Generator for 3DS — console & Windows
+
+> Fork of [Fadgiras/RetroArchForwarder3DS](https://github.com/Fadgiras/RetroArchForwarder3DS)
+> that adds safe title ids, SteamGridDB artwork and a Windows builder with a
+> live preview.
 
 Turns a ROM on your SD card into a HOME menu icon that launches it straight in
 **your installed RetroArch**, with your own settings, overrides and saves.
@@ -40,7 +44,8 @@ already taken. See [Safety](#safety).
 
 ## Usage on the console
 
-Drop `fwdgen.3dsx` into `sdmc:/3ds/` and run it from the Homebrew Launcher.
+Download `fwdgen.3dsx` from the [releases](../../releases), drop it into
+`sdmc:/3ds/` and run it from the Homebrew Launcher.
 
 1. Pick the ROM
 2. Pick the core — skipped when the card holds only one
@@ -61,12 +66,15 @@ gets the game's logo, see [SteamGridDB logos](#steamgriddb-logos-optional).
 ## Usage on Windows
 
 **RetroArch Forwarder PC** is for preparing everything on the PC, choosing
-each picture by eye, and only installing the finished CIA. Its window follows
-*PS1 Forwarder Creator Plus*: previews on the left, SteamGridDB on the right.
+each picture by eye, and only installing the finished CIA: previews of the
+banner and the icon on the left, SteamGridDB on the right.
 
-Put these in one folder and double-click `RetroArch Forwarder PC.bat`:
+The interface is in Spanish. Download `RetroArch-Forwarder-PC.zip` from the
+[releases](../../releases), unzip it anywhere and double-click
+`RetroArch Forwarder PC.bat`. The folder holds:
 
-- `RetroArch Forwarder PC.bat`, `RetroArchForwarderPC.ps1` and `LEEME.txt`, from `pc/`
+- `RetroArch Forwarder PC.bat`, `RetroArchForwarderPC.ps1` and a short guide
+  (`LEEME.txt`, in Spanish), from `pc/`
 - `fwdgen-pc.exe`, see [Getting fwdgen-pc.exe](#getting-fwdgen-pcexe)
 - `template.cia`, from `romfs/`
 
@@ -74,22 +82,23 @@ Then, with the console's SD card in the PC:
 
 1. **SD**: detected by its `Nintendo 3DS` folder. The cores found on it fill
    the *Core* list.
-2. **Elegir juego de la SD...**: the game must be on that card, since the
-   forwarder opens it from there. Its name fills *Nombre*, and the title id
+2. **Game**: pick it on that card, since the forwarder opens it from there.
+   Its file name, without region or disc tags, becomes the title, and the title id
    it will get is shown with the reason: free, an update of this game's
    forwarder, or moved because another title holds the hashed id.
 3. **Artwork**, in order of priority:
    - local files: `logos\<game>.png`, `covers\<game>.png|jpg` (background),
      `icons\<game>.png`;
    - SteamGridDB: with an API key, the game is searched and its *Logos*,
-     *Fondos (Heroes)*, *Portadas (Grids)* and *Iconos* appear as thumbnails;
+     *Heroes* (backgrounds), *Grids* (covers) and *Icons* appear as thumbnails;
      click one to use it. The first of each can be picked automatically;
    - the libretro title screen, as the background, when nothing else is set.
 4. **Banner**: the logo over the background, blurred and dimmed, or the
-   background alone. **Banner transparente** keeps only the logo, so the
+   background alone. The **transparent banner** option keeps only the logo, so the
    HOME menu shows through. The icon always has a background: icons carry
    no alpha.
-5. **Crear CIA** saves it, by default to `<SD>\cias\`. Install it with FBI.
+5. **Build the CIA**: it is saved by default to `<SD>\cias\`. Install it
+   with FBI.
 
 Rebuilding a game keeps its title id and raises the title version, so the
 HOME menu refreshes the icon when the new CIA is installed over the old one.
@@ -109,7 +118,7 @@ sh pc/build.sh
 ```
 
 or take the `fwdgen-pc` artifact of the *build* workflow, which also bundles
-the GUI, `LEEME.txt` and `template.cia`.
+the GUI, the guide and `template.cia`.
 
 It can be used on its own:
 
