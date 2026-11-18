@@ -38,6 +38,20 @@ Drop `fwdgen.3dsx` into `sdmc:/3ds/` and run it from the Homebrew Launcher.
 | Y | back to root |
 | START | quit |
 
+## Building on Windows instead
+
+`pc/` holds a Windows version for those who prefer to prepare everything on the
+PC and only install the CIA: a PowerShell GUI (`RetroArchForwarderPC.ps1`,
+started by `RetroArch Forwarder PC.bat`) with SteamGridDB logos, heroes,
+grids and icons, and a live preview of the banner and icon. The CIA itself is
+written by `fwdgen-pc.exe`, built from the same `source/` files as the
+console app (`pc/build.sh`, with zig). Put both next to `template.cia`.
+
+The PC reads the SD card for the installed titles and the same
+`sdmc:/forwarders/registry.txt`, so the id rules match the console. It cannot
+read a title's product code (that copy is encrypted), so any installed title
+the registry does not give to this ROM counts as someone else's.
+
 ## How the forwarder launches the game
 
 **Not** through the APT deliver argument. RetroArch does receive it but never

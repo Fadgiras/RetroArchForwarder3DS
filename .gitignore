@@ -12,3 +12,4 @@ fwdgen.smdh
 *.exe
 host/*.bin
 host/*.cia
+pc/fwdgen-pc.exe

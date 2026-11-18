@@ -1,0 +1,46 @@
+RetroArch Forwarder PC
+======================
+
+Crea en Windows el mismo CIA que fwdgen.3dsx: un icono en el menu HOME que
+abre un juego de tu SD directamente en tu RetroArch instalado, con tu
+configuracion, tus overrides y tus partidas de siempre.
+
+ABRIRLO
+- Doble clic en "RetroArch Forwarder PC.bat".
+- Junto a el deben estar fwdgen-pc.exe y template.cia.
+
+ANTES DE EMPEZAR
+- Conecta la SD de la 3DS a la PC (o la 3DS por FTP montada como unidad).
+- En la SD debe estar el core como .3dsx, por ejemplo
+  sdmc:/retroarch/cores/pcsx_rearmed_libretro.3dsx
+  (viene en RetroArch_3dsx.7z del buildbot de libretro; usa la misma
+  version que tu RetroArch).
+- El juego debe estar en la SD: el forwarder lo abre desde ahi.
+
+USO
+1. Elige la SD (se detecta sola si tiene la carpeta "Nintendo 3DS").
+2. "Elegir juego de la SD...": .chd, .m3u, .cue, .pbp, etc.
+3. Busca en SteamGridDB y haz clic en el logo, fondo o icono que quieras.
+   Sin API key se usa la pantalla de titulo de libretro como fondo.
+4. "Crear CIA". Por defecto se guarda en <SD>\cias\.
+5. En la 3DS: FBI > SD > cias > instala el CIA.
+
+TITLE ID
+- El programa revisa los titulos instalados en la SD y el registro
+  sdmc:/forwarders/registry.txt (el mismo que usa fwdgen.3dsx).
+- Nunca usa el ID de otro titulo instalado (por ejemplo tus forwarders
+  de DS): si esta ocupado, toma el siguiente libre y te lo dice.
+- Si vuelves a crear el CIA de un juego, conserva su ID y sube la version,
+  asi el menu HOME actualiza el icono al instalarlo encima.
+
+ARCHIVOS LOCALES (tienen prioridad)
+- logos\<nombre del juego>.png
+- covers\<nombre del juego>.png o .jpg   (fondo)
+- icons\<nombre del juego>.png
+
+API KEY
+- Se guarda en settings.json, en esta carpeta, en texto plano.
+- La primera vez reutiliza la de PS1 Forwarder Creator Plus si la
+  encuentra en una carpeta vecina.
+
+Si algo falla, el detalle queda en log.txt.
