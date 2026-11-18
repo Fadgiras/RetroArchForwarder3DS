@@ -20,8 +20,8 @@ APP_AUTHOR		:=	Fadgiras
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 CFLAGS	:=	-g -Wall -O2 -mword-relocations -ffunction-sections $(ARCH) $(INCLUDE) -D__3DS__
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
-LIBS	:=	-lctru -lm
-LIBDIRS	:=	$(CTRULIB)
+LIBS	:=	-lcurl -lmbedtls -lmbedx509 -lmbedcrypto -ljansson -lz -lctru -lm
+LIBDIRS	:=	$(PORTLIBS) $(CTRULIB)
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 

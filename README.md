@@ -115,6 +115,30 @@ tried in turn. Twenty cores have several, `genesis_plus_gx` the most with five.
 The system that answered is then reused for the banner, so it never looks
 somewhere the icon did not.
 
+### SteamGridDB logos (optional)
+
+With an API key, the banner shows the game's **logo from
+[SteamGridDB](https://www.steamgriddb.com)** (section *Logos*: transparent
+PNGs) over its title screen, blurred and dimmed. Without a title screen the
+logo sits on a dark gradient.
+
+1. Get a key at <https://www.steamgriddb.com/profile/preferences/api>.
+2. Put it, alone, in `sdmc:/forwarders/steamgriddb.txt`.
+
+The game is searched by its name without region or disc tags. An exact title
+match is taken directly; otherwise a list appears on the bottom screen
+(A pick, X search again, B skip). Logos are cached in
+`sdmc:/forwarders/logos/`: delete one to fetch it again, or drop your own
+PNG there under the game's name to use it offline.
+
+SteamGridDB only accepts modern TLS (ECDHE ciphers, ECDSA certificates), which
+the console's SSL service does not offer, so this part uses libcurl and
+mbedTLS from the devkitPro portlibs. Certificates are verified against the
+Mozilla bundle shipped in `romfs/cacert.pem`
+([curl.se](https://curl.se/docs/caextract.html)). The key is sent only to the
+API, never to the image CDN. Anything failing falls back to the libretro
+artwork.
+
 ### Identifying the game
 
 Matching on the file name only goes so far: a ROM called `FF7.pbp` matches

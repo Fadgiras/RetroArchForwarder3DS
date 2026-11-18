@@ -24,6 +24,7 @@
 #include "metadata.h"
 #include "namepick.h"
 #include "idalloc.h"
+#include "sgdb.h"
 
 #define OUT_DIR "sdmc:/forwarders"
 #define TEMPLATE "romfs:/template.cia"
@@ -429,25 +430,43 @@ int main(void)
 		printf("  icon     : %s\n", how);
 	}
 
-	// Banner: the title screen when the repository has one, box art otherwise.
+	// Banner: the SteamGridDB logo over the game's artwork when a key is set,
+	// otherwise the title screen when the repository has one, box art after.
 	{
-		char art[PATH_LEN];
+		char art[PATH_LEN], logo[PATH_LEN];
 		size_t reserved = 0;
 		uint8_t* bnr = cia_banner_data(&cia, &reserved);
 		bool found = findArt(rom_path, art_system, art_name, "Named_Titles", art, sizeof(art))
 			|| findArt(rom_path, art_system, art_name, "Named_Boxarts", art, sizeof(art));
+		sgdb_result lr = sgdbFetchLogo(art_name[0] ? art_name : name, logo, sizeof(logo));
+		uint8_t* rebuilt = bnr ? malloc(reserved) : NULL;
+		size_t n = 0;
 
-		if (bnr && found)
+		if (lr != SGDB_OK && lr != SGDB_OFF)
+			printf("  logo     : %s\n", sgdbDescribe(lr));
+
+		if (rebuilt && lr == SGDB_OK)
 		{
-			uint8_t* rebuilt = malloc(reserved);
-			size_t n = rebuilt ? bannerReplaceImage(bnr, reserved, art, rebuilt, reserved) : 0;
+			n = bannerReplaceWithLogo(bnr, reserved, found ? art : NULL, logo, rebuilt, reserved);
+			if (n && cia_set_banner(&cia, rebuilt, n) == CIA_OK)
+				printf("  banner   : SteamGridDB logo applied\n");
+			else
+			{
+				printf("  banner   : logo unreadable, deleting it\n");
+				remove(logo);
+				n = 0;
+			}
+		}
+		if (rebuilt && !n && found)
+		{
+			n = bannerReplaceImage(bnr, reserved, art, rebuilt, reserved);
 			printf("  banner   : %s\n",
 				(n && cia_set_banner(&cia, rebuilt, n) == CIA_OK)
 					? "applied" : "failed, template banner kept");
-			free(rebuilt);
 		}
-		else
+		else if (!n)
 			printf("  banner   : template banner kept\n");
+		free(rebuilt);
 	}
 	cia_set_title_id(&cia, tid);
 
@@ -489,6 +508,7 @@ done:
 	free(s_cia);
 	free(s_installed);
 	free(s_registry);
+	sgdbExit();
 	httpcExit();
 	amExit();
 	romfsExit();
