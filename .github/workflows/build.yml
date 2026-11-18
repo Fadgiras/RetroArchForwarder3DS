@@ -63,8 +63,31 @@ jobs:
             fwdgen.smdh
           if-no-files-found: error
 
+  windows-tool:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build fwdgen-pc.exe
+        run: |
+          set -eu
+          pip install ziglang
+          sh pc/build.sh
+
+      - name: Bundle the GUI
+        run: |
+          set -eu
+          mkdir -p "dist/RetroArch Forwarder PC"
+          cp pc/fwdgen-pc.exe pc/RetroArchForwarderPC.ps1 "pc/RetroArch Forwarder PC.bat" pc/LEEME.txt romfs/template.cia "dist/RetroArch Forwarder PC/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fwdgen-pc
+          path: dist/
+          if-no-files-found: error
+
   release:
-    needs: [tests, build]
+    needs: [tests, build, windows-tool]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -74,9 +97,18 @@ jobs:
         with:
           name: fwdgen
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: fwdgen-pc
+          path: pc-dist
+
+      - name: Zip the Windows tool
+        run: cd pc-dist && zip -r "../RetroArch-Forwarder-PC.zip" "RetroArch Forwarder PC"
+
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             fwdgen.3dsx
             fwdgen.smdh
+            RetroArch-Forwarder-PC.zip
           generate_release_notes: true

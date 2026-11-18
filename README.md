@@ -1,10 +1,24 @@
 # RetroArch Forwarder Generator
 
-A Nintendo 3DS homebrew that turns a ROM on your SD card into a HOME menu icon
-launching it straight in RetroArch — box art, banner and all, built and
-installed on the console itself.
+Turns a ROM on your SD card into a HOME menu icon that launches it straight in
+**your installed RetroArch**, with your own settings, overrides and saves.
+The game stays on the SD card; the forwarder is a small CIA (about 430 KB)
+that only starts it.
 
-No PC needed once it is installed.
+There are two ways to build one. Both write the same kind of CIA, from the same
+template and the same patching code:
+
+| | On the console: `fwdgen.3dsx` | On Windows: RetroArch Forwarder PC |
+| --- | --- | --- |
+| Where | Homebrew Launcher | PowerShell GUI, no install |
+| Result | CIA built **and installed** | CIA saved to the SD, install it with FBI |
+| Artwork | libretro thumbnails, SteamGridDB logo | SteamGridDB logos, heroes, grids and icons, local images, libretro title screens |
+| Preview | no | banner and icon, live |
+| Transparent banner | no | yes |
+
+Both read the titles installed on the SD card and the same
+`sdmc:/forwarders/registry.txt`, so they never hand out a title id that is
+already taken. See [Safety](#safety).
 
 ## Requirements
 
@@ -19,9 +33,12 @@ No PC needed once it is installed.
   nightly cores: mixing a recent core with older assets leaves the bottom
   screen mislabelled. RetroArch states its own version in
   `sdmc:/retroarch/logs/`.
-- Wi-Fi, if you want the artwork fetched automatically.
+- The game on the SD card. For multi-disc games pick the **`.m3u`**: discs
+  can be swapped from RetroArch's *Disc Control* and they share one memory
+  card.
+- Wi-Fi on the console, if you want the artwork fetched there.
 
-## Usage
+## Usage on the console
 
 Drop `fwdgen.3dsx` into `sdmc:/3ds/` and run it from the Homebrew Launcher.
 
@@ -38,19 +55,74 @@ Drop `fwdgen.3dsx` into `sdmc:/3ds/` and run it from the Homebrew Launcher.
 | Y | back to root |
 | START | quit |
 
-## Building on Windows instead
+With a SteamGridDB API key in `sdmc:/forwarders/steamgriddb.txt`, the banner
+gets the game's logo, see [SteamGridDB logos](#steamgriddb-logos-optional).
 
-`pc/` holds a Windows version for those who prefer to prepare everything on the
-PC and only install the CIA: a PowerShell GUI (`RetroArchForwarderPC.ps1`,
-started by `RetroArch Forwarder PC.bat`) with SteamGridDB logos, heroes,
-grids and icons, and a live preview of the banner and icon. The CIA itself is
-written by `fwdgen-pc.exe`, built from the same `source/` files as the
-console app (`pc/build.sh`, with zig). Put both next to `template.cia`.
+## Usage on Windows
 
-The PC reads the SD card for the installed titles and the same
-`sdmc:/forwarders/registry.txt`, so the id rules match the console. It cannot
-read a title's product code (that copy is encrypted), so any installed title
-the registry does not give to this ROM counts as someone else's.
+**RetroArch Forwarder PC** is for preparing everything on the PC, choosing
+each picture by eye, and only installing the finished CIA. Its window follows
+*PS1 Forwarder Creator Plus*: previews on the left, SteamGridDB on the right.
+
+Put these in one folder and double-click `RetroArch Forwarder PC.bat`:
+
+- `RetroArch Forwarder PC.bat`, `RetroArchForwarderPC.ps1` and `LEEME.txt`, from `pc/`
+- `fwdgen-pc.exe`, see [Getting fwdgen-pc.exe](#getting-fwdgen-pcexe)
+- `template.cia`, from `romfs/`
+
+Then, with the console's SD card in the PC:
+
+1. **SD**: detected by its `Nintendo 3DS` folder. The cores found on it fill
+   the *Core* list.
+2. **Elegir juego de la SD...**: the game must be on that card, since the
+   forwarder opens it from there. Its name fills *Nombre*, and the title id
+   it will get is shown with the reason: free, an update of this game's
+   forwarder, or moved because another title holds the hashed id.
+3. **Artwork**, in order of priority:
+   - local files: `logos\<game>.png`, `covers\<game>.png|jpg` (background),
+     `icons\<game>.png`;
+   - SteamGridDB: with an API key, the game is searched and its *Logos*,
+     *Fondos (Heroes)*, *Portadas (Grids)* and *Iconos* appear as thumbnails;
+     click one to use it. The first of each can be picked automatically;
+   - the libretro title screen, as the background, when nothing else is set.
+4. **Banner**: the logo over the background, blurred and dimmed, or the
+   background alone. **Banner transparente** keeps only the logo, so the
+   HOME menu shows through. The icon always has a background: icons carry
+   no alpha.
+5. **Crear CIA** saves it, by default to `<SD>\cias\`. Install it with FBI.
+
+Rebuilding a game keeps its title id and raises the title version, so the
+HOME menu refreshes the icon when the new CIA is installed over the old one.
+The API key is kept in `settings.json`, next to the script, in plain text;
+on first run it is taken from a neighbouring *PS1 Forwarder Creator Plus*
+folder if there is one. Problems are logged to `log.txt`.
+
+### Getting fwdgen-pc.exe
+
+`fwdgen-pc.exe` is the command line the GUI drives. It is built from the same
+`source/` files as the console app, so the CIA is the same byte for byte
+given the same pictures. Build it with [zig](https://ziglang.org)
+(`pip install ziglang`):
+
+```
+sh pc/build.sh
+```
+
+or take the `fwdgen-pc` artifact of the *build* workflow, which also bundles
+the GUI, `LEEME.txt` and `template.cia`.
+
+It can be used on its own:
+
+```
+fwdgen-pc tid   --sd E: --rom "sdmc:/roms/psx/Game.chd"
+fwdgen-pc build --sd E: --template template.cia --rom "sdmc:/roms/psx/Game.chd" ^
+                --core "sdmc:/retroarch/cores/pcsx_rearmed_libretro.3dsx" ^
+                --name "Game" --tid 000400000FF1C100 --icon icon.png ^
+                --banner banner.png [--transparent] --out Game.cia
+```
+
+`tid` prints the id the game would get; `build` refuses an id that belongs
+to another title, then records it in the registry.
 
 ## How the forwarder launches the game
 
@@ -248,13 +320,21 @@ only a starting point:
   after that forwarder is uninstalled.
 - Forwarders built before the registry existed are recognised by their product
   code and adopted on their next rebuild.
+- On Windows the same rules apply, read from the SD card: the installed
+  titles are the folders under `Nintendo 3DS\...\title\00040000`. The PC
+  cannot read a title's product code (that copy is encrypted), so an
+  installed title the registry does not give to this ROM always counts as
+  someone else's. `fwdgen-pc build` checks again before writing, and stops
+  when no title is found at all: that is the wrong drive.
 - Nothing outside the range is ever touched.
 - The CIA is written to `sdmc:/forwarders/` **before** being installed, so a
   failed install still leaves a file you can inspect.
 
 ## Building
 
-Needs devkitPro with devkitARM and libctru.
+The console app needs devkitPro with devkitARM, libctru and the 3ds portlibs
+(curl, mbedtls, jansson, zlib). For the Windows tool, see
+[Getting fwdgen-pc.exe](#getting-fwdgen-pcexe).
 
 ```
 make
